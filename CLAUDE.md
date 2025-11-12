@@ -4,42 +4,55 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python-based Local LLM project. The codebase is currently in early stages with minimal implementation.
+A Python-based RAG (Retrieval-Augmented Generation) system using Ollama for local LLM inference and embeddings. The system ingests documents (PDFs, text), stores them as vector embeddings, and enables question-answering over the document corpus.
 
 ## Development Setup
 
-### Initial Setup
-
 ```bash
-# Create virtual environment (already created)
-python3 -m venv venv
-
-# Activate virtual environment
+# Activate virtual environment (already created)
 source venv/bin/activate  # On macOS/Linux
-# venv\Scripts\activate  # On Windows
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Ensure Ollama is running locally with required models:
+ollama pull nomic-embed-text      # For embeddings
+ollama pull deepseek-r1:8b        # For LLM responses (default)
 ```
 
-### Running the Application
+## Architecture
 
-```bash
-# Ensure virtual environment is activated first
-python main.py
-```
+### Core Components
 
-## Project Structure
+**[vector_store.py](vector_store.py)** - Custom in-memory vector store
+- `VectorStore` class using Ollama embeddings (nomic-embed-text by default)
+- Implements cosine similarity search for document retrieval
+- Stores documents, embeddings, and metadata in Python dictionaries
+- Returns results in ChromaDB-compatible format (nested lists)
+- Key methods: `add_documents()`, `search()`, `list_sources()`, `get_document()`
 
-- [main.py](main.py) - Entry point for the application
-- [requirements.txt](requirements.txt) - Python dependencies
-- [.gitignore](.gitignore) - Git ignore rules for Python projects
-- `venv/` - Virtual environment (ignored by git)
+**[document_processor.py](document_processor.py)** - Text chunking utility
+- `chunk_text()`: Splits text into overlapping chunks
+- Default: 500 character chunks with 50 character overlap
 
-## Architecture Notes
+**[document_ingestion.py](document_ingestion.py)** - Document ingestion pipeline
+- `DocumentIngestion` class: Orchestrates PDF and text ingestion
+- Uses PyPDF2 for PDF text extraction
+- Chunks documents and adds them to the vector store with metadata (source, chunk_index, ingested_at)
 
-This project appears to be focused on local LLM integration. As the codebase develops, consider documenting:
-- Which LLM models/frameworks are being used (e.g., llama.cpp, Ollama, Transformers)
-- Model loading and inference patterns
-- API endpoints or CLI interface design
-- Configuration management approach
+**[rag_qa.py](rag_qa.py)** - RAG question-answering system
+- `RAGQA` class: Retrieval-Augmented Generation interface
+- Currently incomplete (contains TODOs for implementation)
+- Intended to integrate vector store retrieval with Ollama LLM generation
+
+### Data Flow
+
+1. **Ingestion Pipeline**: PDF/text → extract text → chunk with overlap → generate embeddings via Ollama → store in VectorStore
+2. **Query Pipeline**: Question → embed query → cosine similarity search → retrieve top N chunks → build prompt with context → LLM generates answer
+
+### Important Implementation Details
+
+- Vector store returns ChromaDB-compatible nested list format: `{"ids": [[...]], "documents": [[...]], "metadatas": [[...]], "distances": [[...]]}`
+- Document IDs follow pattern: `{source_name}_chunk_{index}`
+- Metadata includes: `source`, `chunk_index`, `ingested_at` (ISO format UTC)
+- ChromaDB is installed but not actively used (custom VectorStore implementation instead)
