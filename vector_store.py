@@ -8,7 +8,7 @@ class VectorStore:
 
     def __init__(self, embedding_model: str = "nomic-embed-text"):
         self.embedding_model = embedding_model
-        self.documents: Dict[str, str] = {}  # id -> text
+        self.documents = {}  # id -> text
         self.embeddings: Dict[str, np.ndarray] = {}  # id -> embedding vector
         self.metadata: Dict[str, dict] = {}  # id -> metadata
 
@@ -53,4 +53,38 @@ class VectorStore:
             "documents": [[self.documents[doc_id] for doc_id, _ in top_docs]],
             "metadatas": [[self.metadata[doc_id] for doc_id, _ in top_docs]],
             "distances": [[1 - similarity for _, similarity in top_docs]]
+        }
+    
+    def list_sources(self) -> List[str]:
+        """List all unique source names in the vector store.
+        Returns:
+            List of unique source names.
+        """
+        sources = set() # Using a set automatically handles uniqueness
+        for metadata in self.metadata.values():
+            sources.add(metadata['source'])
+        return list(sources)
+
+    def get_document(self, source_name: str) -> Dict:
+        '''
+        create empty lists to collect chunk info
+        '''
+        chunk_ids = []
+        ingested_at = None
+
+        #loop through all metadata entries
+        for doc_id, metadata in self.metadata.items():
+            #Check if this chunk belongs to our source
+            if metadata['source'] == source_name:
+                # Add the chunk id to our list
+                chunk_ids.append(doc_id)
+                # save the ingestions time (assuming all chunks have the same time
+                if ingested_at is None:
+                    ingested_at = metadata['ingested_at']
+
+        return {
+            "source": source_name,
+            "num_chunks": len(chunk_ids),
+            "ingested_at": ingested_at,
+            "chunk_ids": chunk_ids
         }
