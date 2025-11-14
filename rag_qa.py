@@ -14,8 +14,8 @@ class RAGQA:
             vector_store: VectorStore instance containing documents
             llm_model: Name of the Ollama LLM model to use
         """
-        # TODO: Store the vector_store and llm_model as instance variables
-        pass
+        self.vector_store = vector_store
+        self.llm_model = llm_model
 
     def ask(self, question: str, n_results: int = 5) -> Dict:
         """
@@ -31,20 +31,25 @@ class RAGQA:
             - sources: List of source documents used
             - relevant_chunks: The chunks used as context
         """
-        # TODO: Step 1 - Search vector store for relevant chunks
-        # Hint: Use self.vector_store.search(question, n_results)
+        result = self.vector_store.search(question, n_results)
+        
+        # Step 3 - Extract relevant chunks from search results
+        chunks = result["documents"][0]
 
-        # TODO: Step 2 - Extract the document texts from search results
-        # Hint: results["documents"][0] gives you the list of documents
+        # Step 4 - Create prompt for LLM, combining question and context
+        context = "\n\n".join(chunks)
+        prompt = f"Context: {context}\n\nQuestion: {question}\n\nAnswer:"
 
-        # TODO: Step 3 - Build a prompt with context and question
-        # Format: "Context: {chunks}\n\nQuestion: {question}\n\nAnswer:"
+        # Generate answer using Ollama LLM with model and message
+        response = ollama.chat(model=self.llm_model, messages=[{'role': 'user', 'content': prompt}])
+        answer = response['message']['content']
 
-        # TODO: Step 4 - Call Ollama to generate answer
-        # Hint: Use ollama.chat() with model and messages
-
-        # TODO: Step 5 - Extract unique sources from metadata
-        # Hint: results["metadatas"][0] contains the metadata list
-
-        # TODO: Step 6 - Return the formatted response
-        pass
+        # Step 5 - Format and return the response by telling user source documents that were used
+        sources = list(set([meta['source'] for meta in result['metadatas'][0]]))
+        
+        # Return the answer, sources, and relevant chunks in a dictionary
+        return {
+            "answer": answer,
+            "sources": sources,
+            "relevant_chunks": chunks
+        }
